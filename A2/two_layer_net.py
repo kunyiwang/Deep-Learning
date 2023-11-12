@@ -147,7 +147,9 @@ def nn_forward_pass(params: Dict[str, torch.Tensor], X: torch.Tensor):
     # shape (N, C).                                                            #
     ############################################################################
     # Replace "pass" statement with your code
-    pass
+    hidden = X @ W1 + b1
+    hidden[hidden < 0] = 0 # ReLU
+    scores = hidden @ W2 + b2
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -212,7 +214,13 @@ def nn_forward_backward(
     # (Check Numeric Stability in http://cs231n.github.io/linear-classify/).   #
     ############################################################################
     # Replace "pass" statement with your code
-    pass
+    s_max,_ = scores.max(dim=1)
+    scores -= s_max.view(-1, 1)
+    scores = scores.exp() # stablization
+    s_sum = scores.sum(dim=1)
+    scores /= s_sum.view(-1, 1)
+    loss = -1/N * scores[range(N), y].log().sum()
+    loss += reg*torch.sum(W1*W1) + reg*torch.sum(W2*W2)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -226,7 +234,21 @@ def nn_forward_backward(
     # tensor of same size                                                     #
     ###########################################################################
     # Replace "pass" statement with your code
-    pass
+    dL_dS = scores.clone() # (N, C)
+    dL_dS[range(N), y] -= 1
+    dL_dS /= N # (N, C)
+    grads['W2'] = h1.T @ dL_dS + 2*reg*W2 # H1: h1/hidden, S = H1@W2, dL/dW2 = dL/dS * dS/dW2
+    grads['b2'] = dL_dS.sum(dim=0)
+
+    # X = A@B
+    # dY/dX * dX/dA = dY_dX @ B.T
+    # dY/dX * dX/dB = A.T @ dY_dX
+
+    dL_dH1 = dL_dS @ W2.T # dL/dH1 = dL/dS * dS/dH1, S = H1@W2
+    dL_dH1[h1 == 0] = 0 # gradient of ReLU, H1 = ReLU(X@W), let Q = X@W, dL/dQ = dL/dH1 * dH1/dQ
+    grads['W1'] = X.T @ dL_dH1 + 2*reg*W1 # dL/dW2 = dL/dQ * dQ/dW1, Q = X@W1
+    grads['b1'] = dL_dH1.sum(dim=0)
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
