@@ -1,2 +1,2 @@
-# EECS598: Deep Learning for Computer Vision
-## Homeworks for open source course: Umich EECS 598
+# Umich EECS 598: Deep Learning for Computer Vision
+## Homeworks for this open source course.
