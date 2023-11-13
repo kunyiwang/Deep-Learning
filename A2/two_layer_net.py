@@ -428,6 +428,7 @@ def nn_get_search_params():
     hidden_sizes = [2, 8, 32, 128] 
     regularization_strengths = [0, 1e-5, 1e-3, 1e-1]
     learning_rates = [1e-4, 1e-2, 1e0, 1e2]
+    learning_rate_decays = [0.91, 0.93, 0.95]
     ###########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################
@@ -488,7 +489,24 @@ def find_best_net(
     # automatically like we did on the previous exercises.                      #
     #############################################################################
     # Replace "pass" statement with your code
-    pass
+    learning_rates, hidden_sizes, regularization_strengths, learning_rate_decays = get_param_set_fn()
+    for lr in learning_rates:
+      for hs in hidden_sizes:
+        for rs in regularization_strengths:
+          for lrd in learning_rate_decays:
+            print('Learning rate: {}'.format(lr))
+            print('Hidden size: {}'.format(hs))
+            print('Regularization strength: {}'.format(rs))
+            print('Learning Rate Decays: {}'.format(lrd))
+            net = TwoLayerNet(3*32*32, hs, 10)
+            stat = net.train(data_dict['X_train'], data_dict['y_train'], data_dict['X_val'], 
+              data_dict['y_val'], learning_rate = lr, learning_rate_decay = lrd, reg = rs,
+              num_iters = 3000, batch_size = 1000)
+            max_val_acc = max(stat['val_acc_history'])
+            if max_val_acc > best_val_acc:
+              best_net = net
+              best_stat = stat
+              best_val_acc = max_val_acc
     #############################################################################
     #                               END OF YOUR CODE                            #
     #############################################################################
