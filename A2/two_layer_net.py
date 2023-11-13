@@ -147,7 +147,7 @@ def nn_forward_pass(params: Dict[str, torch.Tensor], X: torch.Tensor):
     # shape (N, C).                                                            #
     ############################################################################
     # Replace "pass" statement with your code
-    hidden = X @ W1 + b1
+    hidden = X @ W1 + b1 # (N, H), each row of X@W1 + b1
     hidden[hidden < 0] = 0 # ReLU
     scores = hidden @ W2 + b2
     ###########################################################################
@@ -237,17 +237,17 @@ def nn_forward_backward(
     dL_dS = scores.clone() # (N, C)
     dL_dS[range(N), y] -= 1
     dL_dS /= N # (N, C)
-    grads['W2'] = h1.T @ dL_dS + 2*reg*W2 # H1: h1/hidden, S = H1@W2, dL/dW2 = dL/dS * dS/dW2
-    grads['b2'] = dL_dS.sum(dim=0)
+    grads['W2'] = h1.T @ dL_dS + 2*reg*W2 # H1(N, H): h1/hidden, S = H1@W2, dL/dW2 = dL/dS * dS/dW2
+    grads['b2'] = dL_dS.sum(dim=0) # (C,)
 
     # X = A@B
     # dY/dX * dX/dA = dY_dX @ B.T
     # dY/dX * dX/dB = A.T @ dY_dX
 
-    dL_dH1 = dL_dS @ W2.T # dL/dH1 = dL/dS * dS/dH1, S = H1@W2
+    dL_dH1 = dL_dS @ W2.T # (N, H), dL/dH1 = dL/dS * dS/dH1, S = H1@W2
     dL_dH1[h1 == 0] = 0 # gradient of ReLU, H1 = ReLU(X@W), let Q = X@W, dL/dQ = dL/dH1 * dH1/dQ
-    grads['W1'] = X.T @ dL_dH1 + 2*reg*W1 # dL/dW2 = dL/dQ * dQ/dW1, Q = X@W1
-    grads['b1'] = dL_dH1.sum(dim=0)
+    grads['W1'] = X.T @ dL_dH1 + 2*reg*W1 # (D, H), dL/dW2 = dL/dQ * dQ/dW1, Q = X@W1
+    grads['b1'] = dL_dH1.sum(dim=0) # (H,)
 
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -329,7 +329,10 @@ def nn_train(
         # stored in the grads dictionary defined above.                         #
         #########################################################################
         # Replace "pass" statement with your code
-        pass
+        params['W1'] -= grads['W1']*learning_rate
+        params['b1'] -= grads['b1']*learning_rate
+        params['W2'] -= grads['W2']*learning_rate
+        params['b2'] -= grads['b2']*learning_rate
         #########################################################################
         #                             END OF YOUR CODE                          #
         #########################################################################
@@ -387,7 +390,8 @@ def nn_predict(
     # TODO: Implement this function; it should be VERY simple!                #
     ###########################################################################
     # Replace "pass" statement with your code
-    pass
+    scores,_ = nn_forward_pass(params, X) # (N, C)
+    _,y_pred = scores.max(dim=1) # 2 outputs: 1st value, 2nd index
     ###########################################################################
     #                              END OF YOUR CODE                           #
     ###########################################################################
@@ -421,7 +425,9 @@ def nn_get_search_params():
     # classifier.                                                             #
     ###########################################################################
     # Replace "pass" statement with your code
-    pass
+    hidden_sizes = [2, 8, 32, 128] 
+    regularization_strengths = [0, 1e-5, 1e-3, 1e-1]
+    learning_rates = [1e-4, 1e-2, 1e0, 1e2]
     ###########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################
