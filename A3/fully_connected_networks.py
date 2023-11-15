@@ -39,7 +39,8 @@ class Linear(object):
         # You will need to reshape the input into rows.                      #
         ######################################################################
         # Replace "pass" statement with your code
-        pass
+        x_reshape = x.view(x.shape[0], -1) # (N, D), x's actual shape will not change after using "view"
+        out = x_reshape @ w + b # (N, M)
         ######################################################################
         #                        END OF YOUR CODE                            #
         ######################################################################
@@ -67,8 +68,20 @@ class Linear(object):
         ##################################################
         # TODO: Implement the linear backward pass.      #
         ##################################################
-        # Replace "pass" statement with your code
-        pass
+
+        # X = A@B
+        # dY/dX * dX/dA = dY_dX @ B.T
+        # dY/dX * dX/dB = A.T @ dY_dX
+
+        # S = X @ W + B
+        # dS/dB = 
+        # dout * dS/dW = X.T @ dout --> X.T (D, N) dout (N, M)
+        # dout * dS/dX = dout @ W.T
+        # dout: Upstream derivative, which means: dUp/dS
+        dx = (dout @ w.T).view(x.shape) # dx is actually dUp/dX
+        dw = x.view(x.shape[0], -1).T @ dout # dw is actually dUp/dW
+        db = dout.sum(dim=0) # dUp/dS * dS/dB
+
         ##################################################
         #                END OF YOUR CODE                #
         ##################################################
