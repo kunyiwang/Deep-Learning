@@ -213,8 +213,13 @@ class TwoLayerNet(object):
         # weights and biases using the keys 'W1' and 'b1' and second layer#
         # weights and biases using the keys 'W2' and 'b2'.                #
         ###################################################################
-        # Replace "pass" statement with your code
-        pass
+        self.params['W1'] = torch.zeros(input_dim, hidden_dim)
+        self.params['W1'] += weight_scale * torch.randn(input_dim, hidden_dim)
+        self.params['b1'] = torch.zeros(hidden_dim)
+        
+        self.params['W2'] = torch.zeros(hidden_dim, num_classes)
+        self.params['W2'] += weight_scale * torch.randn(hidden_dim, num_classes)
+        self.params['b2'] = torch.zeros(num_classes)
         ###############################################################
         #                            END OF YOUR CODE                 #
         ###############################################################
@@ -264,8 +269,8 @@ class TwoLayerNet(object):
         # computing the class scores for X and storing them in the  #
         # scores variable.                                          #
         #############################################################
-        # Replace "pass" statement with your code
-        pass
+        out_hidden, cache_hidden = Linear_ReLU.forward(X, self.params['W1'], self.params['b1'])
+        scores, cache = Linear.forward(out_hidden, self.params['W2'], self.params['b2'])
         ##############################################################
         #                     END OF YOUR CODE                       #
         ##############################################################
@@ -286,8 +291,17 @@ class TwoLayerNet(object):
         # you pass the automated tests, make sure that your L2            #
         # regularization does not include a factor of 0.5.                #
         ###################################################################
-        # Replace "pass" statement with your code
-        pass
+        loss, dout = softmax_loss(scores, y) # dout: dUp/dOut = dL/dS
+        loss += self.reg*(torch.sum(self.params['W1']*self.params['W1'])+
+                          torch.sum(self.params['W2']*self.params['W2']))
+                          
+        dHidden, dw2, db2 = Linear.backward(dout, cache)
+        grads['W2'] = dw2
+        grads['b2'] = db2
+
+        dx, dw1, db1 = Linear_ReLU.backward(dHidden, cache_hidden)
+        grads['W1'] = dw1
+        grads['b1'] = db1
         ###################################################################
         #                     END OF YOUR CODE                            #
         ###################################################################
