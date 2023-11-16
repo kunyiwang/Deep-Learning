@@ -38,7 +38,6 @@ class Linear(object):
         # TODO: Implement the linear forward pass. Store the result in out.  #
         # You will need to reshape the input into rows.                      #
         ######################################################################
-        # Replace "pass" statement with your code
         x_reshape = x.view(x.shape[0], -1) # (N, D), x's actual shape will not change after using "view"
         out = x_reshape @ w + b # (N, M)
         ######################################################################
@@ -107,8 +106,8 @@ class ReLU(object):
         # You should not change the input tensor with an  #
         # in-place operation.                             #
         ###################################################
-        # Replace "pass" statement with your code
-        pass
+        out = x.clone()
+        out[x < 0] = 0
         ###################################################
         #                 END OF YOUR CODE                #
         ###################################################
@@ -132,8 +131,8 @@ class ReLU(object):
         # You should not change the input tensor with an    #
         # in-place operation.                               #
         #####################################################
-        # Replace "pass" statement with your code
-        pass
+        dx = dout.clone() # dUp/dOut(dout) * dOut/dx = dUp/dx
+        dx[x<=0] = 0
         #####################################################
         #                  END OF YOUR CODE                 #
         #####################################################
