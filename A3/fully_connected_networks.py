@@ -107,7 +107,7 @@ class ReLU(object):
         # in-place operation.                             #
         ###################################################
         out = x.clone()
-        out[x < 0] = 0
+        out[out < 0] = 0
         ###################################################
         #                 END OF YOUR CODE                #
         ###################################################
@@ -213,13 +213,13 @@ class TwoLayerNet(object):
         # weights and biases using the keys 'W1' and 'b1' and second layer#
         # weights and biases using the keys 'W2' and 'b2'.                #
         ###################################################################
-        self.params['W1'] = torch.zeros(input_dim, hidden_dim)
-        self.params['W1'] += weight_scale * torch.randn(input_dim, hidden_dim)
-        self.params['b1'] = torch.zeros(hidden_dim)
+        self.params['W1'] = torch.zeros(input_dim, hidden_dim, dtype = dtype, device = device)
+        self.params['W1'] += weight_scale * torch.randn(input_dim, hidden_dim, dtype = dtype, device = device)
+        self.params['b1'] = torch.zeros(hidden_dim, dtype = dtype, device = device)
         
-        self.params['W2'] = torch.zeros(hidden_dim, num_classes)
-        self.params['W2'] += weight_scale * torch.randn(hidden_dim, num_classes)
-        self.params['b2'] = torch.zeros(num_classes)
+        self.params['W2'] = torch.zeros(hidden_dim, num_classes, dtype = dtype, device = device)
+        self.params['W2'] += weight_scale * torch.randn(hidden_dim, num_classes, dtype = dtype, device = device)
+        self.params['b2'] = torch.zeros(num_classes, dtype = dtype, device = device)
         ###############################################################
         #                            END OF YOUR CODE                 #
         ###############################################################
@@ -362,8 +362,17 @@ class FullyConnectedNet(object):
         # centered at 0 with standard deviation equal to weight_scale. Biases #
         # should be initialized to zero.                                      #
         #######################################################################
-        # Replace "pass" statement with your code
-        pass
+        prev_dim = input_dim
+        for i, hidden_dim in enumerate(hidden_dims):
+          k = i+1
+          self.params['W{}'.format(k)] = torch.zeros(prev_dim, hidden_dim, dtype=dtype, device=device)
+          self.params['W{}'.format(k)] += weight_scale * torch.randn(prev_dim, hidden_dim, dtype = dtype, device = device)
+          self.params['b{}'.format(k)] = torch.zeros(hidden_dim, dtype=dtype, device=device)
+          prev_dim = hidden_dim
+        k+=1 # k = num_layers = hidden_dims+1
+        self.params['W{}'.format(k)] = torch.zeros(prev_dim, num_classes, dtype=dtype, device=device)
+        self.params['W{}'.format(k)] += weight_scale * torch.randn(prev_dim, num_classes, dtype = dtype, device = device)
+        self.params['b{}'.format(k)] = torch.zeros(num_classes, dtype=dtype, device=device)
         #######################################################################
         #                         END OF YOUR CODE                            #
         #######################################################################
@@ -426,8 +435,15 @@ class FullyConnectedNet(object):
         # When using dropout, you'll need to pass self.dropout_param     #
         # to each dropout forward pass.                                  #
         ##################################################################
-        # Replace "pass" statement with your code
-        pass
+        out = X
+        cache_dict = {}
+        for i in range(self.num_layers-1):
+          k = i+1
+          out, cache_dict['cache{}'.format(k)] = Linear_ReLU.forward(out, 
+            self.params['W{}'.format(k)], self.params['b{}'.format(k)])
+        k+=1
+        scores, cache_s = Linear.forward(out, self.params['W{}'.format(k)], 
+          self.params['b{}'.format(k)])
         #################################################################
         #                      END OF YOUR CODE                         #
         #################################################################
@@ -448,8 +464,18 @@ class FullyConnectedNet(object):
         # includes a factor of 0.5 to simplify the expression for           #
         # the gradient.                                                     #
         #####################################################################
-        # Replace "pass" statement with your code
-        pass
+        loss, dout = softmax_loss(scores, y) # dout: dL/dS
+        loss += self.reg*(torch.sum(self.params['W{}'.format(k)]*self.params['W{}'.format(k)]))
+        dx, dw, db = Linear.backward(dout, cache_s) # dx: dUp/dX --> X is the input matirx in current layer
+        grads['W{}'.format(k)] = dw + 2*self.reg*self.params['W{}'.format(k)]
+        grads['b{}'.format(k)] = db
+        k-=1
+        while k>=1:
+          dx, dw, db = Linear_ReLU.backward(dx, cache_dict['cache{}'.format(k)])
+          grads['W{}'.format(k)] = dw + 2*self.reg*self.params['W{}'.format(k)]
+          grads['b{}'.format(k)] = db
+          loss += self.reg*(torch.sum(self.params['W{}'.format(k)]*self.params['W{}'.format(k)]))
+          k-=1
         ###########################################################
         #                   END OF YOUR CODE                      #
         ###########################################################
@@ -465,7 +491,7 @@ def create_solver_instance(data_dict, dtype, device):
     #############################################################
     solver = None
     # Replace "pass" statement with your code
-    pass
+    solver = Solver(model, data_dict, device = device, num_epochs = 100)
     ##############################################################
     #                    END OF YOUR CODE                        #
     ##############################################################
