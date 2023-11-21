@@ -1,6 +1,6 @@
 # Umich EECS 498/598: Deep Learning for Computer Vision
 
-## Homeworks for this open source course.
+## Assignments for this open source course.
 ### A1
 1. Pytorch tutorial
 2. k-nearest neighbors algorithm
