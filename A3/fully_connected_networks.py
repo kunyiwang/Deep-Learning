@@ -598,8 +598,8 @@ def rmsprop(w, dw, config=None):
     # in the next_w variable. Don't forget to update cache value stored in    #
     # config['cache'].                                                        #
     ###########################################################################
-    # Replace "pass" statement with your code
-    pass
+    config['cache'] = config['decay_rate']*config['cache'] + (1-config['decay_rate'])*(dw**2)
+    next_w = w - dw * config['learning_rate']/(torch.sqrt(config['cache'])+config['epsilon'])
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -639,8 +639,7 @@ def adam(w, dw, config=None):
     # NOTE: In order to match the reference output, please modify t _before_ #
     # using it in any calculations.                                          #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+    
     #########################################################################
     #                              END OF YOUR CODE                         #
     #########################################################################
