@@ -639,7 +639,12 @@ def adam(w, dw, config=None):
     # NOTE: In order to match the reference output, please modify t _before_ #
     # using it in any calculations.                                          #
     ##########################################################################
-    
+    config['t']+=1
+    config['m'] = config['beta1']*config['m'] + (1-config['beta1'])*dw
+    mt = config['m']/(1-(config['beta1']**config['t']))
+    config['v'] = config['beta2']*config['v'] + (1-config['beta2'])*(dw**2)
+    vt = config['v']/(1-(config['beta2']**config['t']))
+    next_w = w - mt * config['learning_rate']/(torch.sqrt(vt)+config['epsilon'])
     #########################################################################
     #                              END OF YOUR CODE                         #
     #########################################################################
