@@ -696,8 +696,11 @@ class Dropout(object):
             # inverted dropout.                                          #
             # Store the dropout mask in the mask variable.               #
             ##############################################################
-            # Replace "pass" statement with your code
-            pass
+
+            # mask genearte matirx with 0 of percentage of p
+            mask = torch.rand(x.shape) < p # rand() generates normal distribution in [0,1)
+            mask = mask.to('cuda')
+            out = x*mask/p
             ##############################################################
             #                   END OF YOUR CODE                         #
             ##############################################################
@@ -706,8 +709,7 @@ class Dropout(object):
             # TODO: Implement the test phase forward pass for            #
             # inverted dropout.                                          #
             ##############################################################
-            # Replace "pass" statement with your code
-            pass
+            out = x
             ##############################################################
             #                      END OF YOUR CODE                      #
             ##############################################################
@@ -733,8 +735,7 @@ class Dropout(object):
             # TODO: Implement training phase backward pass for        #
             # inverted dropout                                        #
             ###########################################################
-            # Replace "pass" statement with your code
-            pass
+            dx = dout*mask/dropout_param['p']
             ###########################################################
             #                     END OF YOUR CODE                    #
             ###########################################################
