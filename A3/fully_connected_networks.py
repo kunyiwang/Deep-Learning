@@ -441,6 +441,8 @@ class FullyConnectedNet(object):
           k = i+1
           out, cache_dict['cache{}'.format(k)] = Linear_ReLU.forward(out, 
             self.params['W{}'.format(k)], self.params['b{}'.format(k)])
+          if self.use_dropout:
+            out, cache_dict['cache_dropout{}'.format(k)] = Dropout.forward(out, self.dropout_param)
         k+=1
         scores, cache_s = Linear.forward(out, self.params['W{}'.format(k)], 
           self.params['b{}'.format(k)])
@@ -471,6 +473,8 @@ class FullyConnectedNet(object):
         grads['b{}'.format(k)] = db
         k-=1
         while k>=1:
+          if self.use_dropout:
+            dx = Dropout.backward(dx, cache_dict['cache_dropout{}'.format(k)])
           dx, dw, db = Linear_ReLU.backward(dx, cache_dict['cache{}'.format(k)])
           grads['W{}'.format(k)] = dw + 2*self.reg*self.params['W{}'.format(k)]
           grads['b{}'.format(k)] = db
