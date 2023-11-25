@@ -704,7 +704,7 @@ class Dropout(object):
             # mask genearte matirx with 0 of percentage of p
             mask = torch.rand(x.shape) < p # rand() generates normal distribution in [0,1)
             mask = mask.to('cuda')
-            out = x*mask/p
+            out = x*mask/(1-p)
             ##############################################################
             #                   END OF YOUR CODE                         #
             ##############################################################
@@ -739,7 +739,7 @@ class Dropout(object):
             # TODO: Implement training phase backward pass for        #
             # inverted dropout                                        #
             ###########################################################
-            dx = dout*mask/dropout_param['p']
+            dx = dout*mask/(1-dropout_param['p'])
             ###########################################################
             #                     END OF YOUR CODE                    #
             ###########################################################
