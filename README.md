@@ -2,16 +2,16 @@
 
 ## Assignments for this open source course.
 ### A1
-1. Pytorch tutorial
-2. k-nearest neighbors algorithm
+1. Pytorch Tutorial
+2. K-nearest Neighbors Algorithm
 
 ### A2
-1. linear classifier
-2. two-layer network
+1. Linear Classifier
+2. Two-layer Neural Network
 
 ### A3
-1. fully connected neural network
-2. convolutional neural network
+1. Fully Connected Neural Network
+2. Convolutional Neural Network
 
 ## Interests oriented projects.
 
