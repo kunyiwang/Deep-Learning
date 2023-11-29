@@ -50,8 +50,21 @@ class Conv(object):
         # Hint: you can use function torch.nn.functional.pad for padding.  #
         # You are NOT allowed to use anything in torch.nn in other places. #
         ####################################################################
-        # Replace "pass" statement with your code
-        pass
+        pad = conv_param['pad']
+        stride = conv_param['stride']
+        N, C, H, W = x.shape
+        F, C, HH, WW = w.shape
+        H_out = int(1 + (H + 2 * pad - HH) / stride) # H_out : H'
+        W_out = int(1 + (W + 2 * pad - WW) / stride) # W_out : W'
+        x = torch.nn.functional.pad(x, (pad,pad,pad,pad))
+        # since output shape: (N, F, H', W'), F is actually C_out, while C is w is the same as C in x
+        out = torch.zeros((N, F, H_out, W_out), dtype=x.dtype, device=x.device)
+        for n in range(N): # each sample
+          for f in range(F): # each filter
+            for h_idx in range(H_out): # height index
+              for w_idx in range(W_out): # width index
+                # w[f]: (C, HH, WW) / x[n]: (C, H+2*pad, W+2*pad) --> need to select (HH, WW) in (H, W)
+                out[n,f,h_idx,w_idx] = b[f] + (w[f]*x[n,:,h_idx*stride:h_idx*stride+HH,w_idx*stride:w_idx*stride+WW]).sum()
         #####################################################################
         #                          END OF YOUR CODE                         #
         #####################################################################
@@ -75,8 +88,24 @@ class Conv(object):
         ###############################################################
         # TODO: Implement the convolutional backward pass.            #
         ###############################################################
-        # Replace "pass" statement with your code
-        pass
+        x, w, b, conv_param = cache # here x is already x_pad, since it is padded and passed in forward process
+        pad = conv_param['pad']
+        stride = conv_param['stride']
+        N,F,H_out,W_out = dout.shape
+        _, _, H_w, W_w = w.shape
+
+        dx = torch.zeros_like(x) # (N,C,H_x,W_x)
+        dw = torch.zeros_like(w) # (F,C,H_w,W_w) -> dout: (N,F,H_out.W_out)
+        db = torch.zeros_like(b) # (F,)
+
+        for n in range(N):
+          for f in range(F):
+            db[f] += torch.sum(dout[n,f,:,:]) 
+            for h_idx in range(H_out):
+              for w_idx in range(W_out):
+                dx[n,:,stride*h_idx:stride*h_idx+H_w,stride*w_idx:stride*w_idx+W_w] += dout[n,f,h_idx,w_idx]*w[f,:,:,:]
+                dw[f,:,:,:] += dout[n,f,h_idx,w_idx]*x[n,:,stride*h_idx:stride*h_idx+H_w,stride*w_idx:stride*w_idx+W_w]
+        dx = dx[:,:,pad:-pad,pad:-pad] # delete padded pixels
         ###############################################################
         #                       END OF YOUR CODE                      #
         ###############################################################
