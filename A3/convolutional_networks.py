@@ -137,8 +137,19 @@ class MaxPool(object):
         ####################################################################
         # TODO: Implement the max-pooling forward pass                     #
         ####################################################################
-        # Replace "pass" statement with your code
-        pass
+        N, C, H, W = x.shape
+        pool_height = pool_param['pool_height']
+        pool_width = pool_param['pool_width']
+        stride = pool_param['stride']
+        H_out = int(1 + (H - pool_height) / stride)
+        W_out = int(1 + (W - pool_width) / stride)
+        out = torch.zeros((N, C, H_out, W_out), dtype=x.dtype, device=x.device)
+        for n in range(N):
+          for c in range(C):
+            for h_idx in range(H_out):
+              for w_idx in range(H_out):
+                out[n,c,h_idx,w_idx] = x[n,c,stride*h_idx:stride*h_idx+pool_height,
+                  stride*w_idx:stride*w_idx+pool_width].reshape(-1).max()
         ####################################################################
         #                         END OF YOUR CODE                         #
         ####################################################################
@@ -159,8 +170,26 @@ class MaxPool(object):
         #####################################################################
         # TODO: Implement the max-pooling backward pass                     #
         #####################################################################
-        # Replace "pass" statement with your code
-        pass
+        x, pool_param = cache
+        pool_height = pool_param['pool_height']
+        pool_width = pool_param['pool_width']
+        stride = pool_param['stride']
+        N, C, H, W = x.shape # dout: (N,C,H_out.W_out)
+        H_out = int(1 + (H - pool_height) / stride)
+        W_out = int(1 + (W - pool_width) / stride)
+        dx = torch.zeros_like(x)
+        for n in range(N):
+          for c in range(C):
+            for h_idx in range(H_out):
+              for w_idx in range(W_out):
+                local_x = x[n,c,stride*h_idx:stride*h_idx+pool_height,stride*w_idx:stride*w_idx+pool_width]
+                local_dx = torch.zeros_like(local_x)
+                local_x_flatten = local_x.reshape(-1)
+                value, flat_index = local_x_flatten.max(0)
+                row = flat_index // local_dx.shape[1]
+                col = flat_index % local_dx.shape[1]
+                local_dx[row, col] = dout[n,c,h_idx,w_idx]
+                dx[n,c,stride*h_idx:stride*h_idx+pool_height,stride*w_idx:stride*w_idx+pool_width] = local_dx
         ####################################################################
         #                          END OF YOUR CODE                        #
         ####################################################################
