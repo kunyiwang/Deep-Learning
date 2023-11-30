@@ -251,8 +251,30 @@ class ThreeLayerConvNet(object):
         # **the width and height of the input are preserved**. Take a        #
         # look at the start of the loss() function to see how that happens.  #
         ######################################################################
-        # Replace "pass" statement with your code
-        pass
+        conv_params = {'stride':1, 'pad':(filter_size-1)//2} # set pad, making size_out == size_in
+        pool_params = {'pool_height':2, 'pool_width':2, 'stride':2}
+        C, H, W = input_dims
+        HH = filter_size
+        WW = filter_size
+        H_out_conv = int(1+(H+2*conv_params['pad']-HH)/conv_params['stride'])
+        W_out_conv = int(1+(W+2*conv_params['pad']-WW)/conv_params['stride'])
+        H_out_pool = int(1+(H_out_conv-pool_params['pool_height'])/pool_params['stride'])
+        W_out_pool = int(1+(W_out_conv-pool_params['pool_height'])/pool_params['stride'])
+
+        # Conv layer weights and biases
+        self.params['W1'] = torch.zeros(num_filters, C, HH, WW, dtype=dtype, device=device)
+        self.params['W1'] += weight_scale*torch.randn(num_filters, C, HH, WW, dtype=dtype, device=device)
+        self.params['b1'] = torch.zeros(num_filters, dtype=dtype, device=device)
+
+        # Hidden linear layer weights and biases
+        self.params['W2'] = torch.zeros(num_filters*H_out_pool*W_out_pool, hidden_dim, dtype=dtype, device=device)
+        self.params['W2'] += weight_scale*torch.randn(num_filters*H_out_pool*W_out_pool, hidden_dim, dtype=dtype, device=device)
+        self.params['b2'] = torch.zeros(hidden_dim, dtype=dtype, device=device)
+
+        # Output linear layer weights and biases
+        self.params['W3'] = torch.zeros(hidden_dim, num_classes, dtype=dtype, device=device)
+        self.params['W3'] += weight_scale*torch.randn(hidden_dim, num_classes, dtype=dtype, device=device)
+        self.params['b3'] = torch.zeros(num_classes, dtype=dtype, device=device)        
         ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
@@ -300,8 +322,10 @@ class ThreeLayerConvNet(object):
         # Remember you can use functions defined in your implementation      #
         # above                                                              #
         ######################################################################
-        # Replace "pass" statement with your code
-        pass
+        out_CRP, cache_CRP = Conv_ReLU_Pool.forward(X, W1, b1, conv_param, pool_param)
+        out_LR, cache_LR = Linear_ReLU.forward(out_CRP, W2, b2)
+        out_L, cache_L = Linear.forward(out_LR, W3, b3)
+        scores = out_L
         ######################################################################
         #                             END OF YOUR CODE                       #
         ######################################################################
@@ -321,8 +345,21 @@ class ThreeLayerConvNet(object):
         # pass the automated tests, make sure that your L2 regularization  #
         # does not include a factor of 0.5                                 #
         ####################################################################
-        # Replace "pass" statement with your code
-        pass
+        loss, dout = softmax_loss(scores, y)
+        for i in range(1, 4):
+          loss += (self.params['W{}'.format(i)]*self.params['W{}'.format(i)]).sum()*self.reg
+
+        dout, dw3, db3 = Linear.backward(dout, cache_L)
+        grads['W3'] = dw3 + 2*W3*self.reg
+        grads['b3'] = db3
+        
+        dout, dw2, db2 = Linear_ReLU.backward(dout, cache_LR)
+        grads['W2'] = dw2 + 2*W2*self.reg
+        grads['b2'] = db2
+
+        dout, dw1, db1 = Conv_ReLU_Pool.backward(dout, cache_CRP)
+        grads['W1'] = dw1 + 2*W1*self.reg
+        grads['b1'] = db1
         ###################################################################
         #                             END OF YOUR CODE                    #
         ###################################################################
