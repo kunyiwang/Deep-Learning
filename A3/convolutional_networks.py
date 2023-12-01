@@ -442,8 +442,33 @@ class DeepConvNet(object):
         # Batchnorm scale (gamma) and shift (beta) parameters should be     #
         # initilized to ones and zeros respectively.                        #
         #####################################################################
-        # Replace "pass" statement with your code
-        pass
+        filter_size = 3
+        conv_params = {'stride':1, 'pad':(filter_size-1)//2} # set pad, making size_out == size_in
+        pool_params = {'pool_height':2, 'pool_width':2, 'stride':2}
+        prev_filter, H_out, W_out = input_dims # initialization
+        HH = filter_size
+        WW = filter_size
+
+        # Conv layer weights and biases
+        for i,num_filter in enumerate(num_filters):
+          H_out = int(1+(H_out+2*conv_params['pad']-HH)/conv_params['stride']) # H_out_conv
+          W_out = int(1+(W_out+2*conv_params['pad']-WW)/conv_params['stride']) # W_out_conv
+          
+          if i in max_pools:
+            H_out = int(1+(H_out-pool_params['pool_height'])/pool_params['stride']) # H_out_pool
+            W_out = int(1+(W_out-pool_params['pool_height'])/pool_params['stride']) # H_out_pool
+          
+          self.params['W{}'.format(i)] = torch.zeros(num_filter, prev_filter, HH, WW, dtype=dtype, device=device)
+          self.params['W{}'.format(i)] += weight_scale*torch.randn(num_filter, prev_filter, HH, WW, dtype=dtype, device=device)
+          self.params['b{}'.format(i)] = torch.zeros(num_filter, dtype=dtype, device=device)
+
+          prev_filter = num_filter
+        
+        i+=1
+        # Output linear layer weights and biases
+        self.params['W{}'.format(i)] = torch.zeros(num_filter*H_out*W_out, num_classes, dtype=dtype, device=device)
+        self.params['W{}'.format(i)] += weight_scale*torch.randn(num_filter*H_out*W_out, num_classes, dtype=dtype, device=device)
+        self.params['b{}'.format(i)] = torch.zeros(num_classes, dtype=dtype, device=device)
         ################################################################
         #                      END OF YOUR CODE                        #
         ################################################################
@@ -549,8 +574,22 @@ class DeepConvNet(object):
         # max pooling layers, or the convolutional sandwich     #
         # layers, to simplify your implementation.              #
         #########################################################
-        # Replace "pass" statement with your code
-        pass
+        out = X
+        cache_dict = {}
+
+        # Forward Conv and Pooling layers
+        for n in range(self.num_layers-1):
+          if n in self.max_pools:
+            out, cache_dict['{}'.format(n)] = Conv_ReLU_Pool.forward(out, self.params['W{}'.format(n)], 
+              self.params['b{}'.format(n)], conv_param, pool_param)
+          else:
+            out, cache_dict['{}'.format(n)] = Conv_ReLU.forward(out, self.params['W{}'.format(n)], 
+              self.params['b{}'.format(n)], conv_param)
+
+        # Forward Linear Layers
+        n+=1
+        out, cache_dict['{}'.format(n)] = Linear.forward(out, self.params['W{}'.format(n)], self.params['b{}'.format(n)])
+        scores = out        
         #####################################################
         #                 END OF YOUR CODE                  #
         #####################################################
@@ -570,8 +609,26 @@ class DeepConvNet(object):
         # pass the automated tests, make sure that your L2 regularization #
         # does not include a factor of 0.5                                #
         ###################################################################
-        # Replace "pass" statement with your code
-        pass
+
+        # Compute Loss
+        loss, dout = softmax_loss(scores, y)
+        for n in range(self.num_layers):
+          loss += (self.params['W{}'.format(n)]*self.params['W{}'.format(n)]).sum()*self.reg
+
+        # Linear Layer Backward
+        dout, dw, grads['b{}'.format(n)] = Linear.backward(dout, cache_dict['{}'.format(n)])
+        grads['W{}'.format(n)] = dw + 2*self.reg*self.params['W{}'.format(n)]
+        n-=1
+
+        # Conv & Pooling Layers Backward
+        for n in range(n, -1, -1):
+          if n in self.max_pools:
+            dout, dw, grads['b{}'.format(n)] = Conv_ReLU_Pool.backward(dout, cache_dict['{}'.format(n)])
+            grads['W{}'.format(n)] = dw + 2*self.reg*self.params['W{}'.format(n)]
+          else:
+            dout, dw, grads['b{}'.format(n)] = Conv_ReLU.backward(dout, cache_dict['{}'.format(n)])
+            grads['W{}'.format(n)] = dw + 2*self.reg*self.params['W{}'.format(n)]
+
         #############################################################
         #                       END OF YOUR CODE                    #
         #############################################################
@@ -586,8 +643,8 @@ def find_overfit_parameters():
     # TODO: Change weight_scale and learning_rate so your     #
     # model achieves 100% training accuracy within 30 epochs. #
     ###########################################################
-    # Replace "pass" statement with your code
-    pass
+    weight_scale = 1e-1
+    learning_rate = 1e-3
     ###########################################################
     #                       END OF YOUR CODE                  #
     ###########################################################
