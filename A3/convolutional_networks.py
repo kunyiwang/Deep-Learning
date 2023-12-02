@@ -458,16 +458,24 @@ class DeepConvNet(object):
             H_out = int(1+(H_out-pool_params['pool_height'])/pool_params['stride']) # H_out_pool
             W_out = int(1+(W_out-pool_params['pool_height'])/pool_params['stride']) # H_out_pool
           
-          self.params['W{}'.format(i)] = torch.zeros(num_filter, prev_filter, HH, WW, dtype=dtype, device=device)
-          self.params['W{}'.format(i)] += weight_scale*torch.randn(num_filter, prev_filter, HH, WW, dtype=dtype, device=device)
+          if weight_scale == 'kaiming':
+            self.params['W{}'.format(i)] = kaiming_initializer(num_filter, prev_filter, 
+            K=filter_size, relu=True, dtype=dtype, device=device)
+          else:
+            self.params['W{}'.format(i)] = torch.zeros(num_filter, prev_filter, HH, WW, dtype=dtype, device=device)
+            self.params['W{}'.format(i)] += weight_scale*torch.randn(num_filter, prev_filter, HH, WW, dtype=dtype, device=device)
           self.params['b{}'.format(i)] = torch.zeros(num_filter, dtype=dtype, device=device)
 
           prev_filter = num_filter
         
         i+=1
         # Output linear layer weights and biases
-        self.params['W{}'.format(i)] = torch.zeros(num_filter*H_out*W_out, num_classes, dtype=dtype, device=device)
-        self.params['W{}'.format(i)] += weight_scale*torch.randn(num_filter*H_out*W_out, num_classes, dtype=dtype, device=device)
+        if weight_scale == 'kaiming':
+          self.params['W{}'.format(i)] = kaiming_initializer(num_filter*H_out*W_out, num_classes, 
+            K=None, relu=False, dtype=dtype, device=device)
+        else:
+          self.params['W{}'.format(i)] = torch.zeros(num_filter*H_out*W_out, num_classes, dtype=dtype, device=device)
+          self.params['W{}'.format(i)] += weight_scale*torch.randn(num_filter*H_out*W_out, num_classes, dtype=dtype, device=device)
         self.params['b{}'.format(i)] = torch.zeros(num_classes, dtype=dtype, device=device)
         ################################################################
         #                      END OF YOUR CODE                        #
@@ -658,8 +666,27 @@ def create_convolutional_solver_instance(data_dict, dtype, device):
     # TODO: Train the best DeepConvNet that you can on      #
     # CIFAR-10 within 60 seconds.                           #
     #########################################################
-    # Replace "pass" statement with your code
-    pass
+    input_dims = data_dict['X_train'].shape[1:]
+    weight_scale = 'kaiming'
+    model = DeepConvNet(input_dims=input_dims,
+                        num_filters=[32, 16, 64],
+                        max_pools=[0, 1, 2],
+                        batchnorm=False,
+                        num_classes=10,
+                        weight_scale=weight_scale,
+                        reg=1e-5,
+                        weight_initializer=None,
+                        dtype=dtype,
+                        device=device)
+    solver = Solver(model, data_dict,
+                    update_rule=adam,
+                    optim_config={
+                      'learning_rate': 3e-3,
+                    },
+                    lr_decay=0.95,
+                    num_epochs=100, batch_size=128,
+                    print_every=100,
+                    device=device)
     #########################################################
     #                  END OF YOUR CODE                     #
     #########################################################
@@ -700,8 +727,12 @@ def kaiming_initializer(Din, Dout, K=None, relu=True, device='cpu',
         # The output should be a tensor in the designated size, dtype,    #
         # and device.                                                     #
         ###################################################################
-        # Replace "pass" statement with your code
-        pass
+
+        # Linear Layer Initilization
+        weight_scale = gain/Din
+        weight = torch.zeros(Din, Dout, dtype=dtype, device=device)
+        weight += weight_scale * torch.randn(Din, Dout, dtype=dtype, device=device)
+
         ###################################################################
         #                            END OF YOUR CODE                     #
         ###################################################################
@@ -714,8 +745,12 @@ def kaiming_initializer(Din, Dout, K=None, relu=True, device='cpu',
         # The output should be a tensor in the designated size, dtype,    #
         # and device.                                                     #
         ###################################################################
-        # Replace "pass" statement with your code
-        pass
+
+        # Conv Layer Initilization
+        weight_scale = gain/(Din*K*K)
+        weight = torch.zeros(Din, Dout, K, K, dtype=dtype, device=device)
+        weight += weight_scale * torch.randn(Din, Dout, K, K, dtype=dtype, device=device)
+
         ###################################################################
         #                         END OF YOUR CODE                        #
         ###################################################################
