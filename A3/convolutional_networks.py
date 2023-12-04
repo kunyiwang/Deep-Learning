@@ -453,6 +453,10 @@ class DeepConvNet(object):
         for i,num_filter in enumerate(num_filters):
           H_out = int(1+(H_out+2*conv_params['pad']-HH)/conv_params['stride']) # H_out_conv
           W_out = int(1+(W_out+2*conv_params['pad']-WW)/conv_params['stride']) # W_out_conv
+
+          if self.batchnorm:
+            self.params['gamma{}'.format(i)] = torch.ones(num_filter, dtype=dtype, device=device)
+            self.params['beta{}'.format(i)] = 0.01*torch.randn(num_filter, dtype=dtype, device=device)
           
           if i in max_pools:
             H_out = int(1+(H_out-pool_params['pool_height'])/pool_params['stride']) # H_out_pool
@@ -460,7 +464,7 @@ class DeepConvNet(object):
           
           if weight_scale == 'kaiming':
             self.params['W{}'.format(i)] = kaiming_initializer(num_filter, prev_filter, 
-            K=filter_size, relu=True, dtype=dtype, device=device)
+              K=filter_size, relu=True, dtype=dtype, device=device)
           else:
             self.params['W{}'.format(i)] = torch.zeros(num_filter, prev_filter, HH, WW, dtype=dtype, device=device)
             self.params['W{}'.format(i)] += weight_scale*torch.randn(num_filter, prev_filter, HH, WW, dtype=dtype, device=device)
@@ -588,11 +592,21 @@ class DeepConvNet(object):
         # Forward Conv and Pooling layers
         for n in range(self.num_layers-1):
           if n in self.max_pools:
-            out, cache_dict['{}'.format(n)] = Conv_ReLU_Pool.forward(out, self.params['W{}'.format(n)], 
-              self.params['b{}'.format(n)], conv_param, pool_param)
+            if self.batchnorm:
+              out, cache_dict['{}'.format(n)] = Conv_BatchNorm_ReLU_Pool.forward(out, self.params['W{}'.format(n)],
+                self.params['b{}'.format(n)], self.params['gamma{}'.format(n)], 
+                self.params['beta{}'.format(n)], conv_param, self.bn_params[n], pool_param)
+            else:
+              out, cache_dict['{}'.format(n)] = Conv_ReLU_Pool.forward(out, self.params['W{}'.format(n)], 
+                self.params['b{}'.format(n)], conv_param, pool_param)
           else:
-            out, cache_dict['{}'.format(n)] = Conv_ReLU.forward(out, self.params['W{}'.format(n)], 
-              self.params['b{}'.format(n)], conv_param)
+            if self.batchnorm:
+              out, cache_dict['{}'.format(n)] = Conv_BatchNorm_ReLU.forward(out, self.params['W{}'.format(n)],
+                self.params['b{}'.format(n)], self.params['gamma{}'.format(n)], 
+                self.params['beta{}'.format(n)], conv_param, self.bn_params[n])
+            else:
+              out, cache_dict['{}'.format(n)] = Conv_ReLU.forward(out, self.params['W{}'.format(n)], 
+                self.params['b{}'.format(n)], conv_param)
 
         # Forward Linear Layers
         n+=1
@@ -631,11 +645,25 @@ class DeepConvNet(object):
         # Conv & Pooling Layers Backward
         for n in range(n, -1, -1):
           if n in self.max_pools:
-            dout, dw, grads['b{}'.format(n)] = Conv_ReLU_Pool.backward(dout, cache_dict['{}'.format(n)])
-            grads['W{}'.format(n)] = dw + 2*self.reg*self.params['W{}'.format(n)]
+            if self.batchnorm:
+              dout, dw, db, dgamma, dbeta = Conv_BatchNorm_ReLU_Pool.backward(dout, cache_dict['{}'.format(n)])
+              grads['W{}'.format(n)] = dw + 2*self.reg*self.params['W{}'.format(n)]
+              grads['b{}'.format(n)] = db
+              grads['gamma{}'.format(n)] = dgamma
+              grads['beta{}'.format(n)] = dbeta
+            else:
+              dout, dw, grads['b{}'.format(n)] = Conv_ReLU_Pool.backward(dout, cache_dict['{}'.format(n)])
+              grads['W{}'.format(n)] = dw + 2*self.reg*self.params['W{}'.format(n)]
           else:
-            dout, dw, grads['b{}'.format(n)] = Conv_ReLU.backward(dout, cache_dict['{}'.format(n)])
-            grads['W{}'.format(n)] = dw + 2*self.reg*self.params['W{}'.format(n)]
+            if self.batchnorm:
+              dout, dw, db, dgamma, dbeta = Conv_BatchNorm_ReLU.backward(dout, cache_dict['{}'.format(n)])
+              grads['W{}'.format(n)] = dw + 2*self.reg*self.params['W{}'.format(n)]
+              grads['b{}'.format(n)] = db
+              grads['gamma{}'.format(n)] = dgamma
+              grads['beta{}'.format(n)] = dbeta
+            else:
+              dout, dw, grads['b{}'.format(n)] = Conv_ReLU.backward(dout, cache_dict['{}'.format(n)])
+              grads['W{}'.format(n)] = dw + 2*self.reg*self.params['W{}'.format(n)]
 
         #############################################################
         #                       END OF YOUR CODE                    #
@@ -729,7 +757,7 @@ def kaiming_initializer(Din, Dout, K=None, relu=True, device='cpu',
         ###################################################################
 
         # Linear Layer Initilization
-        weight_scale = gain/Din
+        weight_scale = torch.sqrt(torch.tensor(gain/Din)).item()
         weight = torch.zeros(Din, Dout, dtype=dtype, device=device)
         weight += weight_scale * torch.randn(Din, Dout, dtype=dtype, device=device)
 
@@ -747,7 +775,7 @@ def kaiming_initializer(Din, Dout, K=None, relu=True, device='cpu',
         ###################################################################
 
         # Conv Layer Initilization
-        weight_scale = gain/(Din*K*K)
+        weight_scale = torch.sqrt(torch.tensor(gain/(Din*K*K))).item()
         weight = torch.zeros(Din, Dout, K, K, dtype=dtype, device=device)
         weight += weight_scale * torch.randn(Din, Dout, K, K, dtype=dtype, device=device)
 
@@ -877,7 +905,6 @@ class BatchNorm(object):
 
             #step8: Nor the two transformation steps
             #print(gamma)
-
             gammax = gamma * xhat
 
             #step9
