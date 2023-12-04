@@ -838,8 +838,53 @@ class BatchNorm(object):
             # Referencing the original paper                                 #
             # (https://arxiv.org/abs/1502.03167) might prove to be helpful.  #
             ##################################################################
-            # Replace "pass" statement with your code
-            pass
+            
+            '''
+            # Calculate Mean
+            mean = x.sum(axis=0)/N # (D,)
+            running_mean = momentum * running_mean + (1 - momentum) * mean
+
+            # Calculate Variance
+            var = ((x-mean)**2).sum(axis=0)/N # (D,)
+            running_var = momentum * running_var + (1 - momentum) * var
+
+            # Normalization
+            out = (x-mean)/((var+eps)**(1/2))
+            out = out*gamma + beta
+            '''
+
+            #step1: calculate mean
+            mu = 1./N * torch.sum(x, axis = 0)
+            running_mean = momentum * running_mean + (1 - momentum) * mu
+
+            #step2: subtract mean vector of every trainings example
+            xmu = x - mu
+            
+            #step3: following the lower branch - calculation denominator
+            sq = xmu ** 2
+            
+            #step4: calculate variance
+            var = 1./N * torch.sum(sq, axis = 0)
+            running_var = momentum * running_var + (1 - momentum) * var
+            #step5: add eps for numerical stability, then sqrt
+            sqrtvar = torch.sqrt(var + eps)
+
+            #step6: invert sqrtwar
+            ivar = 1./sqrtvar
+          
+            #step7: execute normalization
+            xhat = xmu * ivar
+
+            #step8: Nor the two transformation steps
+            #print(gamma)
+
+            gammax = gamma * xhat
+
+            #step9
+            out = gammax + beta
+
+            cache = (xhat,gamma,xmu,ivar,sqrtvar,var,eps)
+
             ################################################################
             #                           END OF YOUR CODE                   #
             ################################################################
@@ -851,8 +896,10 @@ class BatchNorm(object):
             # normalized data using gamma and beta. Store the result       #
             # in the out variable.                                         #
             ################################################################
-            # Replace "pass" statement with your code
-            pass
+
+            out = (x-running_mean)/((running_var+eps)**(1/2))
+            out = out*gamma + beta
+            
             ################################################################
             #                      END OF YOUR CODE                        #
             ################################################################
@@ -893,8 +940,43 @@ class BatchNorm(object):
         # might prove to be helpful.                                        #
         # Don't forget to implement train and test mode separately.         #
         #####################################################################
-        # Replace "pass" statement with your code
-        pass
+        xhat,gamma,xmu,ivar,sqrtvar,var,eps = cache
+    
+        N,D = dout.shape
+
+        #step9
+        dbeta = torch.sum(dout, axis=0)
+        dgammax = dout #not necessary, but more understandable
+
+        #step8
+        dgamma = torch.sum(dgammax*xhat, axis=0)
+        dxhat = dgammax * gamma
+
+        #step7
+        divar = torch.sum(dxhat*xmu, axis=0)
+        dxmu1 = dxhat * ivar
+
+        #step6
+        dsqrtvar = -1. /(sqrtvar**2) * divar
+
+        #step5
+        dvar = 0.5 * 1. /torch.sqrt(var+eps) * dsqrtvar
+
+        #step4
+        dsq = 1. /N * torch.ones((N,D),device = dout.device) * dvar
+
+        #step3
+        dxmu2 = 2 * xmu * dsq
+
+        #step2
+        dx1 = (dxmu1 + dxmu2)
+        dmu = -1 * torch.sum(dxmu1+dxmu2, axis=0)
+
+        #step1
+        dx2 = 1. /N * torch.ones((N,D),device = dout.device) * dmu
+
+        #step0
+        dx = dx1 + dx2
         #################################################################
         #                      END OF YOUR CODE                         #
         #################################################################
@@ -926,8 +1008,14 @@ class BatchNorm(object):
         # the inputs in a single statement; our implementation fits on a  #
         # single 80-character line.                                       #
         ###################################################################
-        # Replace "pass" statement with your code
-        pass
+
+        xhat,gamma,_,ivar,_,_,_ = cache
+        N,D = dout.shape
+        #get the dimensions of the input/output
+        dbeta = torch.sum(dout, dim=0)
+        dgamma = torch.sum(xhat * dout, dim=0)
+        dx = (gamma*ivar/N) * (N*dout - xhat*dgamma - dbeta)
+
         #################################################################
         #                        END OF YOUR CODE                       #
         #################################################################
