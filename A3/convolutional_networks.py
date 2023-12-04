@@ -1062,8 +1062,12 @@ class SpatialBatchNorm(object):
         # implemented above. Your implementation should be very short; #
         # ours is less than five lines.                                #
         ################################################################
-        # Replace "pass" statement with your code
-        pass
+
+        N, C, H, W = x.shape
+        x_ = x.permute(1, 0, 2, 3).reshape(C, -1).T # x_: (N*H*W, C)
+        out, cache = BatchNorm.forward(x_, gamma, beta, bn_param)
+        out = out.T.reshape(C, N, H, W).permute(1, 0, 2, 3)
+
         ################################################################
         #                       END OF YOUR CODE                       #
         ################################################################
@@ -1093,8 +1097,12 @@ class SpatialBatchNorm(object):
         # implemented above. Your implementation should be very short;  #
         # ours is less than five lines.                                 #
         #################################################################
-        # Replace "pass" statement with your code
-        pass
+        
+        N, C, H, W = dout.shape
+        dout_ = dout.permute(1, 0, 2, 3).reshape(C, -1).T # x_: (N*H*W, C)
+        dx, dgamma, dbeta = BatchNorm.backward_alt(dout_, cache) # dgamma: (C,)/dbeta: (C,) no need of reshaping
+        dx = dx.T.reshape(C, N, H, W).permute(1, 0, 2, 3)
+
         ##################################################################
         #                       END OF YOUR CODE                         #
         ##################################################################
