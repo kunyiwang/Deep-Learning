@@ -14,6 +14,9 @@
 1. Fully Connected Neural Network
 2. Convolutional Neural Network
 
+### A4
+1. LSTM
+
 ## Interests oriented projects.
 
 Will be updated soon.
