@@ -57,14 +57,18 @@ def three_layer_convnet(x, params):
   # TODO: Implement the forward pass for the three-layer ConvNet.              
   # The network have the following architecture:                               
   # 1. Conv layer (with bias) with 32 5x5 filters, with zero-padding of 2     
-  #   2. ReLU                                                                  
+  # 2. ReLU                                                                  
   # 3. Conv layer (with bias) with 16 3x3 filters, with zero-padding of 1     
   # 4. ReLU                                                                   
   # 5. Fully-connected layer (with bias) to compute scores for 10 classes    
   # Hint: F.linear, F.conv2d, F.relu, flatten (implemented above)                                   
   ##############################################################################
-  # Replace "pass" statement with your code
-  pass
+  x = F.conv2d(x, conv_w1, bias = conv_b1, stride = 1, padding = 2)
+  x = F.relu(x)
+  x = F.conv2d(x, conv_w2, bias = conv_b2, stride = 1, padding = 1)
+  x = F.relu(x)
+  x = flatten(x)
+  scores = F.linear(x, fc_w, fc_b)
   ##############################################################################
   #                                 END OF YOUR CODE                             
   ##############################################################################
@@ -104,8 +108,35 @@ def initialize_three_layer_conv_part2(dtype=torch.float, device='cpu'):
   # using the zero_weight function.                         
   # You are given all the necessary variables above for initializing weights. 
   ##############################################################################
-  # Replace "pass" statement with your code
-  pass
+
+  # First Conv Layer
+  conv_w1 = nn.init.kaiming_normal_(torch.empty(channel_1, C, kernel_size_1, kernel_size_1, 
+                                    dtype=dtype, device=device))
+  conv_w1.requires_grad = True
+  conv_b1 = nn.init.zeros_(torch.empty(channel_1, dtype=dtype, device=device))
+  conv_b1.requires_grad = True
+  pad = 2
+  stride = 1
+  H = (H - kernel_size_1 + 2*pad)/stride + 1
+  W = (W - kernel_size_1 + 2*pad)/stride + 1
+
+  # Second Conv Layer
+  conv_w2 = nn.init.kaiming_normal_(torch.empty(channel_2, channel_1, kernel_size_2, kernel_size_2, 
+                                    dtype=dtype, device=device))
+  conv_w2.requires_grad = True
+  conv_b2 = nn.init.zeros_(torch.empty(channel_2, dtype=dtype, device=device))
+  conv_b2.requires_grad = True
+  pad = 1
+  stride = 1
+  H = int((H - kernel_size_2 + 2*pad)/stride + 1)
+  W = int((W - kernel_size_2 + 2*pad)/stride + 1)
+
+  # Third Linear Layer
+  fc_w = nn.init.kaiming_normal_(torch.empty(num_classes, channel_2*H*W, dtype=dtype, device=device))
+  fc_w.requires_grad = True
+  fc_b = nn.init.zeros_(torch.empty(num_classes, dtype=dtype, device=device))
+  fc_b.requires_grad = True
+
   ##############################################################################
   #                                 END OF YOUR CODE                            
   ##############################################################################
