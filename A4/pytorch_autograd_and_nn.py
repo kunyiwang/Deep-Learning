@@ -158,7 +158,7 @@ class ThreeLayerConvNet(nn.Module):
     # model using Kaiming normal initialization, and zero out the bias vectors.     
     #                                       
     # The network architecture should be the same as in Part II:          
-  #   1. Convolutional layer with channel_1 5x5 filters with zero-padding of 2  
+    #   1. Convolutional layer with channel_1 5x5 filters with zero-padding of 2  
     #   2. ReLU                                   
     #   3. Convolutional layer with channel_2 3x3 filters with zero-padding of 1
     #   4. ReLU                                   
@@ -170,8 +170,38 @@ class ThreeLayerConvNet(nn.Module):
     #                                         
     # HINT: nn.Conv2d, nn.init.kaiming_normal_, nn.init.zeros_            
     ############################################################################
-    # Replace "pass" statement with your code
-    pass
+
+    # torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0,
+    #                 dilation=1, groups=1, bias=True, padding_mode='zeros', device=None, dtype=None)
+
+    # Define of 2 Conv Layers
+    H = 32
+    W = 32
+    self.cn1 = nn.Conv2d(in_channel, channel_1, kernel_size=5, stride=1, padding=2)
+    pad = 2
+    stride = 1
+    kernel_size = 5
+    H = int((H - kernel_size + 2*pad)/stride + 1)
+    W = int((W - kernel_size + 2*pad)/stride + 1)
+    self.cn2 = nn.Conv2d(channel_1, channel_2, kernel_size=3, stride=1, padding=1)
+    pad = 1
+    stride = 1
+    kernel_size = 3
+    H = int((H - kernel_size + 2*pad)/stride + 1)
+    W = int((W - kernel_size + 2*pad)/stride + 1)
+
+    # Define of Linear Layer
+    self.fc1 = nn.Linear(channel_2*H*W, num_classes)
+
+    # Initialization
+    nn.init.kaiming_normal_(self.cn1.weight)
+    nn.init.kaiming_normal_(self.cn2.weight)
+    nn.init.kaiming_normal_(self.fc1.weight)
+    
+    nn.init.zeros_(self.cn1.bias)
+    nn.init.zeros_(self.cn2.bias)
+    nn.init.zeros_(self.fc1.bias)
+
     ############################################################################
     #                           END OF YOUR CODE                            
     ############################################################################
@@ -184,8 +214,10 @@ class ThreeLayerConvNet(nn.Module):
     # connectivity of those layers in forward()   
     # Hint: flatten (implemented at the start of part II)                          
     ############################################################################
-    # Replace "pass" statement with your code
-    pass
+    x = F.relu(self.cn1(x))
+    x = F.relu(self.cn2(x))
+    x = flatten(x)
+    scores = self.fc1(x)
     ############################################################################
     #                            END OF YOUR CODE                          
     ############################################################################
@@ -216,8 +248,8 @@ def initialize_three_layer_conv_part3():
   # You should train the model using stochastic gradient descent without       
   # momentum, with L2 weight decay of 1e-4.                    
   ##############################################################################
-  # Replace "pass" statement with your code
-  pass
+  model = ThreeLayerConvNet(C, channel_1, channel_2, num_classes)
+  optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
   ##############################################################################
   #                                 END OF YOUR CODE                            
   ##############################################################################
