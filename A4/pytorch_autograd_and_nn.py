@@ -355,8 +355,17 @@ class PlainBlock(nn.Module):
     # - downsample: add downsampling (a conv with stride=2) if True            
     # Store the result in self.net.                                            
     ############################################################################
-    # Replace "pass" statement with your code
-    pass
+    padding = 1
+    kernel_size = 3
+    stride = 2 if downsample else 1
+    self.net = nn.Sequential(
+      nn.BatchNorm2d(Cin),
+      nn.ReLU(),
+      nn.Conv2d(Cin, Cout, kernel_size = kernel_size, stride = stride, padding = padding),
+      nn.BatchNorm2d(Cout),
+      nn.ReLU(),
+      nn.Conv2d(Cout, Cout, kernel_size = kernel_size, stride = 1, padding = padding)
+    )
     ############################################################################
     #                                 END OF YOUR CODE                         #
     ############################################################################
@@ -379,8 +388,28 @@ class ResidualBlock(nn.Module):
     # - downsample: add downsampling (a conv with stride=2) if True            #
     # Store the main block in self.block and the shortcut in self.shortcut.    #
     ############################################################################
-    # Replace "pass" statement with your code
-    pass
+    padding = 1
+    kernel_size = 3
+    stride = 2 if downsample else 1
+    self.block = nn.Sequential(
+      nn.BatchNorm2d(Cin),
+      nn.ReLU(),
+      nn.Conv2d(Cin, Cout, kernel_size = kernel_size, stride = stride, padding = padding),
+      nn.BatchNorm2d(Cout),
+      nn.ReLU(),
+      nn.Conv2d(Cout, Cout, kernel_size = kernel_size, stride = 1, padding = padding)
+    )
+
+    # Or just replace above by:
+    # self.block = PlainBlock(Cin, Cout, downsample=downsample)
+
+
+    if Cin==Cout and not downsample:
+      self.shortcut = nn.Identity()
+    elif Cin!=Cout and not downsample:
+      self.shortcut = nn.Conv2d(Cin, Cout, kernel_size = 1, stride = 1, padding = 0)
+    else:
+      self.shortcut = nn.Conv2d(Cin, Cout, kernel_size = 1, stride = 2, padding = 0)
     ############################################################################
     #                                 END OF YOUR CODE                         #
     ############################################################################
@@ -399,8 +428,11 @@ class ResNet(nn.Module):
     #       ResNetStage, and wrap the modules by nn.Sequential.                #
     # Store the model in self.cnn.                                             #
     ############################################################################
-    # Replace "pass" statement with your code
-    pass
+    blocks = []
+    blocks.append(ResNetStem())
+    for arg in stage_args:
+      blocks.append(ResNetStage(*arg)) # arg is a tuple like (8, 8, 5, False), needs to be unpackeds
+    self.cnn = nn.Sequential(*blocks) # blocks is a list, needs to be unpacked
     ############################################################################
     #                                 END OF YOUR CODE                         #
     ############################################################################
@@ -412,8 +444,10 @@ class ResNet(nn.Module):
     # TODO: Implement the forward function of ResNet.                          #
     # Store the output in `scores`.                                            #
     ############################################################################
-    # Replace "pass" statement with your code
-    pass
+    out_cnn = self.cnn(x) # (C, H, W)
+    self.pool = nn.AvgPool2d(kernel_size = out_cnn.shape[2], stride = out_cnn.shape[2])
+    out_pool = self.pool(out_cnn) # (C, 1, 1)
+    scores = self.fc(flatten(out_pool)) # flatten(out_pool): (C, )
     ############################################################################
     #                                 END OF YOUR CODE                         #
     ############################################################################
@@ -434,8 +468,25 @@ class ResidualBottleneckBlock(nn.Module):
     # - downsample: add downsampling (a conv with stride=2) if True            #
     # Store the main block in self.block and the shortcut in self.shortcut.    #
     ############################################################################
-    # Replace "pass" statement with your code
-    pass
+    stride = 2 if downsample else 1
+    Cmiddle = Cout//4
+    self.block = nn.Sequential(
+      nn.BatchNorm2d(Cin),
+      nn.ReLU(),
+      nn.Conv2d(Cin, Cmiddle, kernel_size = 1, stride = stride, padding = 0),
+      nn.BatchNorm2d(Cmiddle),
+      nn.ReLU(),
+      nn.Conv2d(Cmiddle, Cmiddle, kernel_size = 3, stride = 1, padding = 1),
+      nn.BatchNorm2d(Cmiddle),
+      nn.ReLU(),
+      nn.Conv2d(Cmiddle, Cout, kernel_size = 1)
+    )
+    if Cin==Cout and not downsample:
+      self.shortcut = nn.Identity()
+    elif Cin!=Cout and not downsample:
+      self.shortcut = nn.Conv2d(Cin, Cout, kernel_size = 1, stride = 1, padding = 0)
+    else:
+      self.shortcut = nn.Conv2d(Cin, Cout, kernel_size = 1, stride = 2, padding = 0)
     ############################################################################
     #                                 END OF YOUR CODE                         #
     ############################################################################
