@@ -15,6 +15,7 @@
 2. Convolutional Neural Network
 
 ### A4
+1. Pytorch API of Building Neural Networks
 1. LSTM
 
 ## Interests oriented projects.
