@@ -16,7 +16,7 @@
 
 ### A4
 1. Pytorch API of Building Neural Networks
-1. LSTM
+1. CNN & LSTM & Attention
 
 ## Interests oriented projects.
 
