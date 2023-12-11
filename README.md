@@ -12,7 +12,15 @@
 
 ### A3
 1. Fully Connected Neural Network
-2. Convolutional Neural Network
+   - Multilayer network
+   - Dropout
+   - Fully-connected nets with dropout
+3. Convolutional Neural Network
+   - Convolutional layer & Max Pooling
+   - Deep convolutional networks
+   - Kaiming initialization
+   - Batch Normalization
+   - Deep convolutional networks with Kaiming initialization and Batch Normalization
 
 ### A4
 1. Pytorch API of Building Neural Networks
@@ -23,6 +31,8 @@
 2. CNN & LSTM & Attention
    - Recurrent Neural Networks & RNN for image captioning
    - Image Captioning with LSTM & attention LSTM
+3. Network Visualization
+4. Style Transfer
 
 ## Interests oriented projects.
 
