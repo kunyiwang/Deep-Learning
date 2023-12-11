@@ -4,7 +4,8 @@
 
 ### A1
 1. Pytorch Tutorial
-2. K-nearest Neighbors Algorithm
+   - Tensor Manipulation
+3. K-nearest Neighbors Algorithm
 
 ### A2
 1. Linear Classifier
