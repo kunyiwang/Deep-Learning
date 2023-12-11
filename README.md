@@ -16,7 +16,13 @@
 
 ### A4
 1. Pytorch API of Building Neural Networks
-1. CNN & LSTM & Attention
+   - Barebones PyTorch
+   - PyTorch Module API
+   - PyTorch Sequential API
+   - ResNet
+2. CNN & LSTM & Attention
+   - Recurrent Neural Networks & RNN for image captioning
+   - Image Captioning with LSTM & attention LSTM
 
 ## Interests oriented projects.
 
