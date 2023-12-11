@@ -8,7 +8,11 @@
 
 ### A2
 1. Linear Classifier
-2. Two-layer Neural Network
+   - SVM Classifier - Forward and Backward Propagation
+   - Softmax Classifier - Forward and Backward Propagation
+3. Two-layer Neural Network
+   - Implement Neural Network: input - fully connected layer - ReLU - fully connected layer - softmax
+   
 
 ### A3
 1. Fully Connected Neural Network
