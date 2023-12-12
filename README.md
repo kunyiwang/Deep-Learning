@@ -37,7 +37,9 @@
    - Recurrent Neural Networks & RNN for image captioning
    - Image Captioning with LSTM & attention LSTM
 3. Network Visualization
-4. Style Transfer
+   -
+5. Style Transfer
+   -
 
 ## Interests oriented projects.
 
