@@ -1,4 +1,4 @@
-# Umich EECS 498/598: Deep Learning for Computer Vision
+# Umich EECS 498/598: Deep Learning for Computer Vision(2020 Version)
 
 ## Assignments
 
