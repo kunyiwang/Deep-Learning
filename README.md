@@ -43,4 +43,5 @@
 
 ## Interests oriented projects.
 
+The topic will be about Reinforcement Learning and 3D Vision.
 Will be updated soon.
