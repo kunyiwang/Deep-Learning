@@ -9,6 +9,8 @@ import torch.nn as nn
 from a4_helper import *
 from torch.nn.parameter import Parameter 
 
+# to_double_cuda = {'dtype': torch.double, 'device': 'cuda'}
+
 def hello():
   """
   This is a sample function that we will try to import and run to ensure that
@@ -101,8 +103,9 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
     # and cache variables respectively.                                          #
     # Hint: You can use torch.tanh()                                             #
     ##############################################################################
-    # Replace "pass" statement with your code
-    pass
+    before_activation = x @ Wx + prev_h @ Wh + b # (N, H)
+    next_h = torch.tanh(before_activation) # (N, H)
+    cache = (before_activation, x, prev_h, Wx, Wh)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -131,8 +134,13 @@ def rnn_step_backward(dnext_h, cache):
     # HINT: For the tanh function, you can compute the local derivative in terms #
     # of the output value from tanh.                                             #
     ##############################################################################
-    # Replace "pass" statement with your code
-    pass
+    before_activation, x, prev_h, Wx, Wh = cache
+    dtanh = (1 - torch.tanh(before_activation)*torch.tanh(before_activation)) * dnext_h # (N, H)
+    db = dtanh.sum(dim=0) # dnext/db = dnext/dtanh * dtanh/db
+    dx = dtanh @ Wx.T # (N, D)
+    dWx = x.T @ dtanh # (D, H)
+    dprev_h = dtanh @ Wh.T # (N, H)
+    dWh = prev_h.T @ dtanh # (H, H)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -163,8 +171,15 @@ def rnn_forward(x, h0, Wx, Wh, b):
     # input data. You should use the rnn_step_forward function that you defined  #
     # above. You can use a for loop to help compute the forward pass.            #
     ##############################################################################
-    # Replace "pass" statement with your code
-    pass
+    N, T, D = x.shape
+    _, H = h0.shape
+    h2D = h0
+    cache = []
+    h = torch.zeros(N, T, H, dtype=h0.dtype, device=h0.device)
+    for t in range(T):
+      h2D, cache_temp = rnn_step_forward(x[:,t,:], h2D, Wx, Wh, b)
+      h[:,t,:] = h2D
+      cache.append(cache_temp)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -196,8 +211,23 @@ def rnn_backward(dh, cache):
     # sequence of data. You should use the rnn_step_backward function that you   #
     # defined above. You can use a for loop to help compute the backward pass.   #
     ##############################################################################
-    # Replace "pass" statement with your code
-    pass
+    N, T, H = dh.shape
+    D = cache[0][1].shape[1]
+    db = torch.zeros(H, dtype=dh.dtype, device=dh.device)
+    dWh = torch.zeros(H, H, dtype=dh.dtype, device=dh.device)
+    dWx = torch.zeros(D, H, dtype=dh.dtype, device=dh.device)
+    dh0 = torch.zeros(N, H, dtype=dh.dtype, device=dh.device)
+    dx = torch.zeros(N, T, D, dtype=dh.dtype, device=dh.device)
+    dprev_h = torch.zeros_like(dh0, dtype=dh.dtype, device=dh.device)
+    for t in range(T)[::-1]:
+      # dh[:,t,:] --> Gradient due to the output at timestep t
+      # dprev_h --> Gradient flowing back from future timesteps
+      dout = dh[:,t,:] + dprev_h
+      dx[:,t,:], dprev_h, dWx_local, dWh_local, db_local = rnn_step_backward(dout, cache[t])
+      db += db_local
+      dWh += dWh_local
+      dWx += dWx_local
+    dh0 = dprev_h
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -291,8 +321,7 @@ class WordEmbedding(nn.Module):
       #                                                                            #
       # HINT: This can be done in one line using PyTorch's array indexing.           #
       ##############################################################################
-      # Replace "pass" statement with your code
-      pass
+      out = self.W_embed[x]
       ##############################################################################
       #                               END OF YOUR CODE                             #
       ##############################################################################
@@ -336,8 +365,10 @@ def temporal_softmax_loss(x, y, ignore_index=None):
     # We use a cross-entropy loss at each timestep, *summing* the loss over      #
     # all timesteps and *averaging* across the minibatch.                        #
     ##############################################################################
-    # Replace "pass" statement with your code
-    pass
+    N, T, V = x.shape
+    x_ = x.reshape(N*T, V)
+    y_ = y.reshape(N*T)
+    loss = torch.nn.functional.cross_entropy(x_, y_, ignore_index = ignore_index, reduction='sum')/N
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -405,8 +436,31 @@ class CaptioningRNN(nn.Module):
         # Hint: In FeatureExtractor, set pooling=True to get the pooled CNN      #
         #       feature and pooling=False to get the CNN activation map.         #
         ##########################################################################
-        # Replace "pass" statement with your code
-        pass
+
+        # feature_extractor and feature_projector are used for input images
+        self.feature_extractor = FeatureExtractor(pooling=True, verbose=False, device=device, dtype=dtype)
+        # Output of FeatureExtractor: Image feature, of shape N x 1280 (pooled) or N x 1280 x 4 x 4
+        # In our case, since we set pooling=True, shape: N x 1280
+        self.feature_projector = nn.Linear(1280, hidden_dim).to(device=device, dtype=dtype)
+
+        '''
+        word_to_idx = {
+            "hello": 0,
+            "world": 1,
+            "machine": 2,
+            "learning": 3
+            # ... and so on for each unique word in your vocabulary
+        }
+        vocab_size = len(word_to_idx)
+        # wordvec_dim is the length of each vector which represents a word
+        '''
+        # word_embed is used for input words
+        self.word_embed = WordEmbedding(vocab_size=vocab_size, embed_size=wordvec_dim, device=device, dtype=dtype)
+
+        # RNN and score_projector are used for finding relationship between images and words
+        self.RNN = RNN(wordvec_dim, hidden_dim, device=device, dtype=dtype)
+        self.score_projector = nn.Linear(hidden_dim, vocab_size).to(device=device, dtype=dtype)
+
         #############################################################################
         #                              END OF YOUR CODE                             #
         #############################################################################
@@ -455,8 +509,23 @@ class CaptioningRNN(nn.Module):
         #                                                                          #
         # Do not worry about regularizing the weights or their gradients!          #
         ############################################################################
-        # Replace "pass" statement with your code
-        pass
+
+        # Deal with input images
+        h0 = self.feature_extractor.extract_mobilenet_feature(images)
+        h0 = self.feature_projector(h0)
+
+        # Deal with input words
+        # The same as: x = self.word_embed.forward(captions_in)
+        x = self.word_embed(captions_in) # (N, T, D)
+
+        # Inject words and images to RNN
+        # The same as: scores = self.RNN.forward(x, h0)
+        scores = self.RNN(x, h0)
+        scores = self.score_projector(scores)
+
+        # Compute Loss
+        loss = temporal_softmax_loss(scores, captions_out, ignore_index=self._null)
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
