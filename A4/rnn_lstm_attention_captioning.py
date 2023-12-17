@@ -319,7 +319,7 @@ class WordEmbedding(nn.Module):
       ##############################################################################
       # TODO: Implement the forward pass for word embeddings.                      #
       #                                                                            #
-      # HINT: This can be done in one line using PyTorch's array indexing.           #
+      # HINT: This can be done in one line using PyTorch's array indexing.         #
       ##############################################################################
       out = self.W_embed[x]
       ##############################################################################
@@ -564,14 +564,14 @@ class CaptioningRNN(nn.Module):
 
         ###########################################################################
         # TODO: Implement test-time sampling for the model. You will need to      #
-        # initialize the hidden state of the RNN by applying the learned affine    #
-        # transform to the image features. The first word that you feed to         #
+        # initialize the hidden state of the RNN by applying the learned affine   #
+        # transform to the image features. The first word that you feed to        #
         # the RNN should be the <START> token; its value is stored in the         #
         # variable self._start. At each timestep you will need to do to:          #
         # (1) Embed the previous word using the learned word embeddings           #
         # (2) Make an RNN step using the previous hidden state and the embedded   #
         #     current word to get the next hidden state.                          #
-        # (3) Apply the learned affine transformation to the next hidden state to  #
+        # (3) Apply the learned affine transformation to the next hidden state to #
         #     get scores for all words in the vocabulary                          #
         # (4) Select the word with the highest score as the next word, writing it #
         #     (the word index) to the appropriate slot in the captions variable   #
@@ -584,13 +584,21 @@ class CaptioningRNN(nn.Module):
         # RNN/LSTM/AttentionLSTM module in a loop.                                #
         #                                                                         #
         # NOTE: we are still working over minibatches in this function. Also if   #
-        # you are using an LSTM, initialize the first cell state to zeros.         #
-        # For AttentionLSTM, first project the 1280x4x4 CNN feature activation to  #
+        # you are using an LSTM, initialize the first cell state to zeros.        #
+        # For AttentionLSTM, first project the 1280x4x4 CNN feature activation to #
         # $A$ of shape Hx4x4. The LSTM initial hidden state and cell state        #
         # would both be A.mean(dim=(2, 3)).                                       #
         ###########################################################################
-        # Replace "pass" statement with your code
-        pass
+        images = self.feature_extractor.extract_mobilenet_feature(images)
+        prev_h = self.feature_projector(images)
+        mask = [self._start for n in range(N)]
+        x = self.word_embed(mask)
+        for t in range(max_length):
+          prev_h = self.RNN.step_forward(x, prev_h)
+          scores = self.score_projector(prev_h)
+          _, idx = scores.max(dim=1)
+          x = self.word_embed(idx)
+          captions[:,t] = idx
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -664,7 +672,7 @@ def lstm_forward(x, h0, Wx, Wh, b):
     c0 = torch.zeros_like(h0) # we provide the intial cell state c0 here for you!
     #############################################################################
     # TODO: Implement the forward pass for an LSTM over an entire timeseries.   #
-    # You should use the lstm_step_forward function that you just defined.       #
+    # You should use the lstm_step_forward function that you just defined.      #
     #############################################################################
     # Replace "pass" statement with your code
     pass
