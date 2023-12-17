@@ -12,7 +12,7 @@
    - SVM Classifier - Forward and Backward Propagation
    - Softmax Classifier - Forward and Backward Propagation
 3. Two-layer Neural Network
-   - Implement Neural Network: input - fully connected layer - ReLU - fully connected layer - softmax
+   - Implement Neural Network: "input - fully connected layer - ReLU - fully connected layer - softmax"
    
 
 ### A3
@@ -33,9 +33,11 @@
    - PyTorch Module API
    - PyTorch Sequential API
    - ResNet
-2. CNN & LSTM & Attention
-   - Recurrent Neural Networks & RNN for image captioning
-   - Image Captioning with LSTM & attention LSTM
+2. RNN & LSTM & Attention
+   - Recurrent Neural Networks(RNN)
+   - Long Short-term Memory(LSTM)
+   - LSTM with Attention
+   - Use RNN/LSTM/LSTM with Attention to predict captions of images
 3. Network Visualization
 5. Style Transfer
 
