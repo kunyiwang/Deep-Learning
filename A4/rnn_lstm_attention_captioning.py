@@ -437,11 +437,16 @@ class CaptioningRNN(nn.Module):
         #       feature and pooling=False to get the CNN activation map.         #
         ##########################################################################
 
+        self.device = device
+        self.dtype = dtype
+
         # feature_extractor and feature_projector are used for input images
         self.feature_extractor = FeatureExtractor(pooling=True, verbose=False, device=device, dtype=dtype)
         # Output of FeatureExtractor: Image feature, of shape N x 1280 (pooled) or N x 1280 x 4 x 4
         # In our case, since we set pooling=True, shape: N x 1280
         self.feature_projector = nn.Linear(1280, hidden_dim).to(device=device, dtype=dtype)
+        nn.init.kaiming_normal_(self.feature_projector.weight)
+        nn.init.zeros_(self.feature_projector.bias)
 
         '''
         word_to_idx = {
@@ -457,9 +462,16 @@ class CaptioningRNN(nn.Module):
         # word_embed is used for input words
         self.word_embed = WordEmbedding(vocab_size=vocab_size, embed_size=wordvec_dim, device=device, dtype=dtype)
 
-        # RNN and score_projector are used for finding relationship between images and words
-        self.RNN = RNN(wordvec_dim, hidden_dim, device=device, dtype=dtype)
+        # RNN/LSTM and score_projector are used for finding relationship between images and words
+        if cell_type=='rnn':
+          self.RNN = RNN(wordvec_dim, hidden_dim, device=device, dtype=dtype)
+        elif cell_type=='lstm':
+          self.LSTM = LSTM(wordvec_dim, hidden_dim, device=device, dtype=dtype)
+        else:
+          pass
         self.score_projector = nn.Linear(hidden_dim, vocab_size).to(device=device, dtype=dtype)
+        nn.init.kaiming_normal_(self.score_projector.weight)
+        nn.init.zeros_(self.score_projector.bias)
 
         #############################################################################
         #                              END OF YOUR CODE                             #
@@ -518,9 +530,14 @@ class CaptioningRNN(nn.Module):
         # The same as: x = self.word_embed.forward(captions_in)
         x = self.word_embed(captions_in) # (N, T, D)
 
-        # Inject words and images to RNN
+        # Inject words and images to RNN/LSTM
         # The same as: scores = self.RNN.forward(x, h0)
-        scores = self.RNN(x, h0)
+        if self.cell_type=='rnn':
+          scores = self.RNN(x, h0)
+        elif self.cell_type=='lstm':
+          scores = self.LSTM(x, h0)
+        else:
+          pass
         scores = self.score_projector(scores)
 
         # Compute Loss
@@ -591,10 +608,18 @@ class CaptioningRNN(nn.Module):
         ###########################################################################
         images = self.feature_extractor.extract_mobilenet_feature(images)
         prev_h = self.feature_projector(images)
+        H = prev_h.shape[1]
+        if self.cell_type=='lstm':
+          prev_c = torch.zeros(N, H, device=self.device, dtype=self.dtype)
         mask = [self._start for n in range(N)]
         x = self.word_embed(mask)
         for t in range(max_length):
-          prev_h = self.RNN.step_forward(x, prev_h)
+          if self.cell_type=='rnn':
+            prev_h = self.RNN.step_forward(x, prev_h)
+          elif self.cell_type=='lstm':
+            prev_h, prec_c = self.LSTM.step_forward(x, prev_h, prev_c)
+          else:
+            pass
           scores = self.score_projector(prev_h)
           _, idx = scores.max(dim=1)
           x = self.word_embed(idx)
@@ -638,8 +663,20 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b, attn=None, Wattn=None):
     # TODO: Implement the forward pass for a single timestep of an LSTM.        #
     # You may want to use torch.sigmoid() for the sigmoid function.             #
     #############################################################################
-    # Replace "pass" statement with your code
-    pass
+    if Wattn:
+      pass
+    else:
+      pass
+
+    a = x @ Wx + prev_h @ Wh + b # (N, 4H)
+    H = prev_h.shape[1]
+    i = torch.sigmoid(a[:, :H]) # input gate
+    f = torch.sigmoid(a[:, H:2*H]) # forget gate
+    o = torch.sigmoid(a[:, 2*H:3*H]) # output gate
+    c = torch.tanh(a[:, 3*H:4*H]) # cell gate
+
+    next_c = f*prev_c + i*c
+    next_h = o*torch.tanh(next_c)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -674,8 +711,14 @@ def lstm_forward(x, h0, Wx, Wh, b):
     # TODO: Implement the forward pass for an LSTM over an entire timeseries.   #
     # You should use the lstm_step_forward function that you just defined.      #
     #############################################################################
-    # Replace "pass" statement with your code
-    pass
+    N, T, _ = x.shape
+    H = h0.shape[1]
+    h = torch.zeros((N, T, H), device=h0.device, dtype=h0.dtype)
+    prev_c = c0
+    prev_h = h0
+    for t in range(T):
+      prev_h, prev_c = lstm_step_forward(x[:,t,:], prev_h, prev_c, Wx, Wh, b, attn=None, Wattn=None)
+      h[:,t,:] = prev_h
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
