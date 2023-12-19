@@ -32,7 +32,7 @@
    - Barebones PyTorch
    - PyTorch Module API
    - PyTorch Sequential API
-   - ResNet
+   - Residual Networks for image classification
 2. RNN & LSTM & Attention
    - Recurrent Neural Networks(RNN)
    - Long Short-term Memory(LSTM)
