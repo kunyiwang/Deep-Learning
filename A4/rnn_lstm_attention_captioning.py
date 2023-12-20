@@ -6,8 +6,10 @@ WARNING: you SHOULD NOT use ".to()" or ".cuda()" in each implementation block.
 import torch
 import math
 import torch.nn as nn
+import torch.nn.functional as F
 from a4_helper import *
 from torch.nn.parameter import Parameter 
+
 
 # to_double_cuda = {'dtype': torch.double, 'device': 'cuda'}
 
@@ -441,10 +443,13 @@ class CaptioningRNN(nn.Module):
         self.dtype = dtype
 
         # feature_extractor and feature_projector are used for input images
-        self.feature_extractor = FeatureExtractor(pooling=True, verbose=False, device=device, dtype=dtype)
         # Output of FeatureExtractor: Image feature, of shape N x 1280 (pooled) or N x 1280 x 4 x 4
-        # In our case, since we set pooling=True, shape: N x 1280
-        self.feature_projector = nn.Linear(1280, hidden_dim).to(device=device, dtype=dtype)
+        if cell_type == 'attention': # shape: N x 1280 x 4 x 4
+          self.feature_extractor = FeatureExtractor(pooling=False, verbose=False, device=device, dtype=dtype)
+          self.feature_projector = nn.Conv2d(1280, hidden_dim, kernel_size=(1,1), device=device, dtype=dtype)          
+        else: # In this case, since we set pooling=True, shape: N x 1280
+          self.feature_extractor = FeatureExtractor(pooling=True, verbose=False, device=device, dtype=dtype)
+          self.feature_projector = nn.Linear(1280, hidden_dim).to(device=device, dtype=dtype)
         nn.init.kaiming_normal_(self.feature_projector.weight)
         nn.init.zeros_(self.feature_projector.bias)
 
@@ -467,8 +472,8 @@ class CaptioningRNN(nn.Module):
           self.RNN = RNN(wordvec_dim, hidden_dim, device=device, dtype=dtype)
         elif cell_type=='lstm':
           self.LSTM = LSTM(wordvec_dim, hidden_dim, device=device, dtype=dtype)
-        else:
-          pass
+        else: # 'attention
+          self.AttentionLSTM = AttentionLSTM(wordvec_dim, hidden_dim, device=device, dtype=dtype)
         self.score_projector = nn.Linear(hidden_dim, vocab_size).to(device=device, dtype=dtype)
         nn.init.kaiming_normal_(self.score_projector.weight)
         nn.init.zeros_(self.score_projector.bias)
@@ -537,7 +542,7 @@ class CaptioningRNN(nn.Module):
         elif self.cell_type=='lstm':
           scores = self.LSTM(x, h0)
         else:
-          pass
+          scores = self.AttentionLSTM(x, h0)
         scores = self.score_projector(scores)
 
         # Compute Loss
@@ -607,19 +612,30 @@ class CaptioningRNN(nn.Module):
         # would both be A.mean(dim=(2, 3)).                                       #
         ###########################################################################
         images = self.feature_extractor.extract_mobilenet_feature(images)
-        prev_h = self.feature_projector(images)
+        images = self.feature_projector(images)
+
+        if self.cell_type=='attention':
+          prev_h = images.mean(dim=(2, 3))
+          prev_c = images.mean(dim=(2, 3))
+        else: # RNN or LSTM
+          prev_h = images
         H = prev_h.shape[1]
         if self.cell_type=='lstm':
           prev_c = torch.zeros(N, H, device=self.device, dtype=self.dtype)
+        
         mask = [self._start for n in range(N)]
         x = self.word_embed(mask)
+
         for t in range(max_length):
           if self.cell_type=='rnn':
             prev_h = self.RNN.step_forward(x, prev_h)
           elif self.cell_type=='lstm':
             prev_h, prec_c = self.LSTM.step_forward(x, prev_h, prev_c)
-          else:
-            pass
+          else: # 'attention'
+            attn, attn_weights = dot_product_attention(prev_h, images)
+            attn_weights_all[:,t,:] = attn_weights
+            prev_h, prec_c = self.AttentionLSTM.step_forward(x, prev_h, prev_c, attn)
+            
           scores = self.score_projector(prev_h)
           _, idx = scores.max(dim=1)
           x = self.word_embed(idx)
@@ -663,20 +679,20 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b, attn=None, Wattn=None):
     # TODO: Implement the forward pass for a single timestep of an LSTM.        #
     # You may want to use torch.sigmoid() for the sigmoid function.             #
     #############################################################################
-    if Wattn:
-      pass
+    if attn != None:
+      temp = attn @ Wattn # (N, H) @ (H, 4H), Wattn is the W matrix for attn, not attn_weights
     else:
-      pass
+      temp = 0
 
-    a = x @ Wx + prev_h @ Wh + b # (N, 4H)
+    a = x @ Wx + prev_h @ Wh + b + temp # (N, 4H)
     H = prev_h.shape[1]
-    i = torch.sigmoid(a[:, :H]) # input gate
-    f = torch.sigmoid(a[:, H:2*H]) # forget gate
-    o = torch.sigmoid(a[:, 2*H:3*H]) # output gate
-    c = torch.tanh(a[:, 3*H:4*H]) # cell gate
+    i = torch.sigmoid(a[:, :H]) # input gate, whether to write to cell
+    f = torch.sigmoid(a[:, H:2*H]) # forget gate, whether to erase cell
+    o = torch.sigmoid(a[:, 2*H:3*H]) # output gate, how much to reveal cell
+    g = torch.tanh(a[:, 3*H:4*H]) # gate gate, how much to write to cell
 
-    next_c = f*prev_c + i*c
-    next_h = o*torch.tanh(next_c)
+    next_c = f*prev_c + i*g # cell state
+    next_h = o*torch.tanh(next_c) # hidden state
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -804,8 +820,12 @@ def dot_product_attention(prev_h, A):
     # You will use this function for `attention_forward` and `sample_caption`   #
     # HINT: Make sure you reshape attn_weights back to (N, 4, 4)!               #
     #############################################################################
-    # Replace "pass" statement with your code
-    pass
+    h_ = prev_h.reshape(N, 1, H)
+    A_ = A.reshape(N, H, 4*4)
+    similarities = torch.bmm(h_, A_).div(math.sqrt(H)).reshape(N, 4*4, 1) # (N, 4*4, 1)
+    similarities_softmax = F.softmax(similarities, dim=1) # (N, 4*4, 1)
+    attn = torch.bmm(A_, similarities_softmax).reshape(N, H) # (N, H)
+    attn_weights = similarities_softmax.reshape(N, 4, 4) # (N, 4, 4)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -853,8 +873,16 @@ def attention_forward(x, A, Wx, Wh, Wattn, b):
     # You should use the lstm_step_forward function and dot_product_attention   #
     # function that you just defined.                                           #
     #############################################################################
-    # Replace "pass" statement with your code
-    pass
+    N, T, _ = x.shape
+    H = A.shape[1]
+    h = torch.zeros((N, T, H), device=x.device, dtype=x.dtype)
+    prev_h = h0
+    prev_c = c0
+    attn, _ = dot_product_attention(prev_h, A)
+    for t in range(T):
+      prev_h, prev_c = lstm_step_forward(x[:,t,:], prev_h, prev_c, Wx, Wh, b, attn=attn, Wattn=Wattn)
+      attn, _ = dot_product_attention(prev_h, A)
+      h[:,t,:] = prev_h
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
