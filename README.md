@@ -39,6 +39,8 @@
    - LSTM with Attention
    - Use RNN/LSTM/LSTM with Attention to predict captions of images
 3. Network Visualization
+   - Saliency Maps
+   - Adversarial Attack
 5. Style Transfer
 
 ### A5
