@@ -42,10 +42,3 @@
    - Saliency Maps
    - Adversarial Attack
 5. Style Transfer
-
-### A5
-
-## Interests oriented projects.
-
-The topic will be about Reinforcement Learning and 3D Vision.
-Will be updated soon.
